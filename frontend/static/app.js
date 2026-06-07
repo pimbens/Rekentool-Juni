@@ -1,8 +1,8 @@
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── State ───────────────────────────────────────────────────────────────────────────────
 let packageTypes = [];
 let activeList = null;
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Init ────────────────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
   await loadPackageTypes();
   await loadActiveList();
@@ -54,7 +54,7 @@ function renderOrderForm() {
   `).join("");
 }
 
-// ─── Upload ───────────────────────────────────────────────────────────────────
+// ─── Upload ─────────────────────────────────────────────────────────────────────────────
 function setupDropZone() {
   const zone = document.getElementById("drop-zone");
   const input = document.getElementById("file-input");
@@ -97,7 +97,7 @@ async function uploadFile(file) {
   }
 }
 
-// ─── Calculate ────────────────────────────────────────────────────────────────
+// ─── Calculate ────────────────────────────────────────────────────────────────────────────
 async function calculate() {
   if (!activeList || !activeList.active) {
     alert("Upload eerst een prijslijst van vandaag.");
@@ -145,17 +145,37 @@ function renderResults(results) {
 
     const rows = r.allocations.map(a => {
       const product = a.product;
+      const plan = a.plan;
       const ppp = a.price_per_piece != null ? `€ ${a.price_per_piece.toFixed(4)}` : "onbekend";
-      const desc = product ? product.description : `<span style="color:#c00">Geen product gevonden</span>`;
+
+      let inkoop = "";
+      if (!product) {
+        inkoop = `<span style="color:#c00">Geen product gevonden</span>`;
+      } else if (!plan) {
+        inkoop = product.description;
+      } else if (plan.pieces_per_box === 1) {
+        inkoop = `${product.description}<br><small>${plan.boxes} stuks</small>`;
+      } else {
+        const boxLabel = plan.boxes === 1 ? "krat" : "kratten";
+        inkoop = `${product.description}<br><small>${plan.boxes} ${boxLabel} × ${plan.pieces_per_box} stuks`;
+        if (plan.supplement) {
+          const s = plan.supplement;
+          inkoop += ` + ${s.pieces} losse van <em>${s.product.description}</em> (€ ${s.cost.toFixed(2)})`;
+        }
+        inkoop += `</small>`;
+      }
+
+      const costPerPkg = plan ? (plan.total_cost / r.num_packages) : 0;
+
       return `
         <tr>
           <td class="best">${a.category_name}</td>
-          <td>${desc}</td>
+          <td>${inkoop}</td>
           <td>${a.pct}%</td>
           <td>${a.pieces_per_package}</td>
-          <td>${a.total_pieces}</td>
+          <td>${plan ? plan.actual_pieces : a.pieces_needed ?? "?"}</td>
           <td>${ppp}</td>
-          <td>€ ${a.cost_per_package.toFixed(2)}</td>
+          <td>€ ${costPerPkg.toFixed(2)}</td>
           <td>€ ${a.total_cost.toFixed(2)}</td>
         </tr>
       `;
@@ -172,7 +192,7 @@ function renderResults(results) {
           <thead>
             <tr>
               <th>Categorie</th>
-              <th>Goedkoopste product</th>
+              <th>Inkoop</th>
               <th>%</th>
               <th>Stuks/pakket</th>
               <th>Totaal stuks</th>
