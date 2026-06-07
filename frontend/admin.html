@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beheer – Rekentool</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>⚙️ Beheer</h1>
+      <nav>
+        <a href="/">Handelaar</a>
+        <a href="/admin" class="active">Beheer</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('tab-packages')">Pakketsoorten</button>
+      <button class="tab-btn" onclick="showTab('tab-categories')">Categorieën</button>
+      <button class="tab-btn" onclick="showTab('tab-products')">Producten / Koppelingen</button>
+      <button class="tab-btn" onclick="showTab('tab-history')">Prijslijst geschiedenis</button>
+    </div>
+
+    <!-- Tab: Packages -->
+    <div id="tab-packages" class="tab-content card">
+      <div class="section-header">
+        <h2>Pakketsoorten</h2>
+        <button class="btn-primary" onclick="showPackageForm()">+ Nieuw pakket</button>
+      </div>
+      <div id="packages-list"></div>
+      <div id="package-form" class="hidden form-card">
+        <h3 id="pkg-form-title">Nieuw pakket</h3>
+        <input type="hidden" id="pkg-id" />
+        <div class="form-row">
+          <label>Naam</label>
+          <input type="text" id="pkg-name" placeholder="bv. Standaard fruitpakket" />
+        </div>
+        <div class="form-row">
+          <label>Aantal stuks per pakket</label>
+          <input type="number" id="pkg-total" value="100" min="1" />
+        </div>
+        <h4>Categorievereisten</h4>
+        <div id="pkg-requirements"></div>
+        <button class="btn-secondary" onclick="addRequirement()">+ Categorie toevoegen</button>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="savePackage()">Opslaan</button>
+          <button class="btn-ghost" onclick="cancelPackageForm()">Annuleren</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Categories -->
+    <div id="tab-categories" class="tab-content card hidden">
+      <div class="section-header">
+        <h2>Categorieën</h2>
+        <button class="btn-primary" onclick="showCategoryForm()">+ Nieuwe categorie</button>
+      </div>
+      <div id="categories-list"></div>
+      <div id="category-form" class="hidden form-card">
+        <h3 id="cat-form-title">Nieuwe categorie</h3>
+        <input type="hidden" id="cat-id" />
+        <div class="form-row">
+          <label>Naam</label>
+          <input type="text" id="cat-name" placeholder="bv. Appels" />
+        </div>
+        <div class="form-row">
+          <label>Zoekwoorden (komma-gescheiden)</label>
+          <input type="text" id="cat-keywords" placeholder="appel, apple, elstar, jonagold" />
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="saveCategory()">Opslaan</button>
+          <button class="btn-ghost" onclick="cancelCategoryForm()">Annuleren</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Products -->
+    <div id="tab-products" class="tab-content card hidden">
+      <h2>Producten in actieve prijslijst</h2>
+      <p class="hint">Hier kun je per product de categorie aanpassen en het gewicht per stuk instellen (nodig voor producten die per kilo worden verkocht).</p>
+      <div class="filter-bar">
+        <input type="text" id="product-search" placeholder="Zoek product…" oninput="filterProducts()" />
+        <select id="product-cat-filter" onchange="filterProducts()">
+          <option value="">Alle categorieën</option>
+          <option value="uncategorized">Niet gekoppeld</option>
+        </select>
+      </div>
+      <div id="products-table-container"></div>
+    </div>
+
+    <!-- Tab: History -->
+    <div id="tab-history" class="tab-content card hidden">
+      <h2>Prijslijst geschiedenis</h2>
+      <div id="history-list"></div>
+    </div>
+  </main>
+
+  <script src="/static/admin.js"></script>
+</body>
+</html>
