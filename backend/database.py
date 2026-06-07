@@ -1,21 +1,11 @@
-import os
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, JSON, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
-# Use DATABASE_URL env var if set (PostgreSQL on Railway/Supabase), else local SQLite
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./rekentool.db")
+DATABASE_URL = "sqlite:///./rekentool.db"
 
-# SQLAlchemy requires postgresql:// instead of postgres://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-else:
-    engine = create_engine(DATABASE_URL)
-
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
