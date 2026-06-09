@@ -8,44 +8,37 @@
 </head>
 <body>
   <header>
-    <div class="header-inner">
-      <h1>🍎 Rekentool Fruitpakketten</h1>
-      <nav>
-        <a href="/" class="active">Handelaar</a>
-        <a href="/admin">Beheer</a>
-      </nav>
-    </div>
+    <h1>Rekentool Fruitpakketten</h1>
+    <nav><a href="/admin">Beheer</a></nav>
   </header>
 
   <main>
-    <!-- Step 1: Upload price list -->
-    <section class="card" id="section-upload">
-      <h2>1. Prijslijst van vandaag</h2>
-      <div id="active-list-info" class="info-box"></div>
-      <div class="upload-area" id="drop-zone">
-        <input type="file" id="file-input" accept=".pdf" hidden />
+    <section class="section">
+      <h2>Stap 1 — Upload prijslijst van vandaag</h2>
+      <div id="active-list-info" class="info-box warning">Laden…</div>
+
+      <div id="drop-zone" class="drop-zone">
+        <input type="file" id="file-input" accept=".pdf" class="hidden" />
         <div class="drop-label">
           <span class="icon">📄</span>
           <p>Sleep een PDF hier naartoe of <button class="link-btn" onclick="document.getElementById('file-input').click()">kies een bestand</button></p>
         </div>
-        <div id="upload-progress" class="hidden">
+        <div id="upload-progress" class="hidden" style="text-align:center;padding:16px">
           <div class="spinner"></div>
-          <span>Bezig met verwerken…</span>
+          <span id="upload-progress-text">Bezig met uploaden…</span>
         </div>
       </div>
       <div id="upload-result"></div>
     </section>
 
-    <!-- Step 2: Enter order -->
-    <section class="card" id="section-order">
-      <h2>2. Bestelling invoeren</h2>
+    <section class="section">
+      <h2>Stap 2 — Voer bestelling in</h2>
       <div id="package-order-list"></div>
-      <button class="btn-primary" id="btn-calculate" onclick="calculate()">Bereken goedkoopste inkoop</button>
+      <button id="btn-calculate" class="btn-primary" onclick="calculate()">Bereken goedkoopste inkoop</button>
     </section>
 
-    <!-- Step 3: Results -->
-    <section class="card hidden" id="section-results">
-      <h2>3. Resultaat</h2>
+    <section class="section hidden" id="section-results">
+      <h2>Resultaat</h2>
       <div id="results-container"></div>
     </section>
   </main>
