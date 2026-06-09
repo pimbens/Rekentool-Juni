@@ -1,8 +1,7 @@
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── State ───────────────────────────────────────────────────────────────────────────────
 let packageTypes = [];
 let activeList = null;
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
   await loadPackageTypes();
   await loadActiveList();
@@ -54,11 +53,10 @@ function renderOrderForm() {
   `).join("");
 }
 
-// ─── Upload ───────────────────────────────────────────────────────────────────
+// ─── Upload ─────────────────────────────────────────────────────────────────────────────
 function setupDropZone() {
   const zone = document.getElementById("drop-zone");
   const input = document.getElementById("file-input");
-
   zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drag-over"); });
   zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
   zone.addEventListener("drop", e => {
@@ -89,9 +87,10 @@ async function uploadFile(file) {
     const res = await fetch("/api/upload-price-list", { method: "POST", body: formData });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Upload mislukt");
-    result.innerHTML = `<div class="info-box">✅ Prijslijst verwerkt: <strong>${data.products_parsed}</strong> producten gevonden.</div>`;
+    progressText.textContent = "Prijslijst verwerken…";
     await loadActiveList();
     await loadPackageTypes();
+    result.innerHTML = `<div class="info-box">✅ Prijslijst verwerkt: <strong>${data.products_parsed}</strong> producten gevonden.</div>`;
   } catch (e) {
     result.innerHTML = `<div class="info-box error">❌ Fout: ${e.message}</div>`;
   } finally {
@@ -100,26 +99,22 @@ async function uploadFile(file) {
   }
 }
 
-// ─── Calculate ────────────────────────────────────────────────────────────────
+// ─── Calculate ────────────────────────────────────────────────────────────────────────────
 async function calculate() {
   if (!activeList || !activeList.active) {
     alert("Upload eerst een prijslijst van vandaag.");
     return;
   }
-
   const order = packageTypes
     .map(pkg => ({ package_type_id: pkg.id, quantity: parseInt(document.getElementById(`qty-${pkg.id}`).value) || 0 }))
     .filter(o => o.quantity > 0);
-
   if (!order.length) {
     alert("Voer bij minimaal één pakketsoort een aantal in.");
     return;
   }
-
   const btn = document.getElementById("btn-calculate");
   btn.disabled = true;
   btn.textContent = "Berekenen…";
-
   try {
     const res = await fetch("/api/calculate", {
       method: "POST",

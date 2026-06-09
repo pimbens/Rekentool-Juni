@@ -13,8 +13,8 @@ Base = declarative_base()
 class FruitCategory(Base):
     __tablename__ = "fruit_categories"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)  # e.g. "appels", "peren"
-    keywords = Column(JSON, default=list)  # keywords to match products from price list
+    name = Column(String, unique=True, nullable=False)
+    keywords = Column(JSON, default=list)
     mappings = relationship("CategoryMapping", back_populates="category", cascade="all, delete-orphan")
 
 
@@ -24,17 +24,15 @@ class PackageType(Base):
     name = Column(String, unique=True, nullable=False)
     total_pieces = Column(Float, default=25)  # kg per pakket
     requirements = Column(JSON, default=list)
-    # requirements: [{"category_id": 1, "min_pct": 30, "max_pct": 40}, ...]
 
 
 class CategoryMapping(Base):
-    """Maps product name patterns to a category, with weight-per-piece info."""
     __tablename__ = "category_mappings"
     id = Column(Integer, primary_key=True, index=True)
     category_id = Column(Integer, ForeignKey("fruit_categories.id"))
     category = relationship("FruitCategory", back_populates="mappings")
     product_keyword = Column(String, nullable=False)
-    grams_per_piece = Column(Float, nullable=True)  # for price-per-kilo items
+    grams_per_piece = Column(Float, nullable=True)
 
 
 class PriceListUpload(Base):
@@ -52,13 +50,13 @@ class Product(Base):
     price_list_id = Column(Integer, ForeignKey("price_list_uploads.id"))
     price_list = relationship("PriceListUpload", back_populates="products")
     description = Column(String)
-    content = Column(String)       # e.g. "11 Kilo", "6 Stuks"
-    packaging = Column(String)     # e.g. "EPS186"
+    content = Column(String)
+    packaging = Column(String)
     price = Column(Float)
-    price_unit = Column(String)    # "Kilo", "Colli", "stuk"
+    price_unit = Column(String)
     category_id = Column(Integer, ForeignKey("fruit_categories.id"), nullable=True)
     grams_per_piece = Column(Float, nullable=True)
-    price_per_piece = Column(Float, nullable=True)
+    price_per_piece = Column(Float, nullable=True)  # opgeslagen als prijs/kg
 
 
 def get_db():
@@ -72,7 +70,6 @@ def get_db():
 def init_db():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-    # Seed default categories and package type if empty
     if db.query(FruitCategory).count() == 0:
         categories = [
             FruitCategory(name="Appels", keywords=["appels", "appel"]),
@@ -90,7 +87,7 @@ def init_db():
                 {"category_id": categories[0].id, "min_pct": 30, "max_pct": 40},
                 {"category_id": categories[1].id, "min_pct": 20, "max_pct": 30},
                 {"category_id": categories[2].id, "min_pct": 10, "max_pct": 20},
-                {"category_id": categories[3].id, "min_pct": 0, "max_pct": 100},  # rest
+                {"category_id": categories[3].id, "min_pct": 0, "max_pct": 100},
             ],
         )
         db.add(pkg)
