@@ -1,19 +1,21 @@
 """
 Calculates the cheapest product selection for a given package type.
 
+Units are in KILOGRAMS throughout.
+
 Buying logic:
-- Products priced per "stuk": buy individual pieces (minimum 1)
-- Products priced per "Colli" with kilo content: buy whole boxes
-- Products priced per "Kilo" with box content: buy whole boxes
-- When gap remains after whole boxes: compare buying extra box vs. supplement from loose product
+- Kilo-priced product with box content (e.g. "7 Kilo"): must buy whole box
+- Kilo-priced product without box content: buy per kg (min 1 kg)
+- Colli-priced product with kilo content: buy whole colli
+- Colli-priced product with stuks content: buy whole colli (converted to kg)
+- stuk-priced product: buy per piece (converted to kg via grams_per_piece)
 """
 import re
-from typing import List, Dict, Optional, Tuple
+import math
+from typing import Optional, Tuple
 from scipy.optimize import linprog
 import numpy as np
 
-
-# ─── Helpers ───────────────────────────────────────────────────────────────────────────────
 
 def _default_grams(desc: str) -> Optional[float]:
     desc = desc.lower()
@@ -45,58 +47,60 @@ def _parse_box_stuks(content: str) -> Optional[int]:
     return None
 
 
-def compute_box_info(product: dict) -> Tuple[int, float]:
+def compute_unit_info_kg(product: dict) -> Tuple[float, float]:
     """
-    Returns (pieces_per_purchase_unit, cost_per_purchase_unit).
-    - stuk:  buy per piece -> (1, price)
-    - Colli with kilo content: whole box -> (kg*1000/g, price)
-    - Colli with stuks content: whole box -> (n, price)
-    - Kilo with box size in content: whole box -> (kg*1000/g, kg*price)
+    Returns (kg_per_purchase_unit, cost_per_purchase_unit).
+    - Kilo + box content "7 Kilo" -> must buy whole box: (7.0, 7*price)
+    - Kilo + no box content        -> buy per kg:         (1.0, price)
+    - Colli + kilo content          -> whole colli:        (kg, colli_price)
+    - Colli + stuks content         -> whole colli in kg:  (n*g/1000, colli_price)
+    - stuk                          -> per piece in kg:    (g/1000, stuk_price)
     """
     price = product.get("price", 0) or 0
     unit = product.get("price_unit", "")
-    content = product.get("content", "") or ""
+    content = (product.get("content") or "").strip()
     desc = product.get("description", "").lower()
     grams = product.get("grams_per_piece") or _default_grams(desc)
 
-    if unit == "stuk":
-        return (1, price)
+    if unit == "Kilo":
+        kg = _parse_box_kg(content)
+        if kg:
+            return (kg, round(kg * price, 4))
+        return (1.0, price)
 
     if unit == "Colli":
         kg = _parse_box_kg(content)
-        if kg and grams:
-            pieces = max(1, int(kg * 1000 / grams))
-            return (pieces, price)
+        if kg:
+            return (kg, price)
         n = _parse_box_stuks(content)
-        if n:
-            return (n, price)
-        m = re.match(r"^(\d+)", content.strip())
-        if m:
+        if n and grams:
+            return (round(n * grams / 1000, 4), price)
+        m = re.match(r"^(\d+)", content)
+        if m and grams:
             n = int(m.group(1))
             if n > 0:
-                return (n, price)
+                return (round(n * grams / 1000, 4), price)
 
-    if unit == "Kilo":
-        kg = _parse_box_kg(content)
-        if kg and grams:
-            pieces = max(1, int(kg * 1000 / grams))
-            return (pieces, round(kg * price, 4))
+    if unit == "stuk":
         if grams:
-            pieces = max(1, int(1000 / grams))
-            return (pieces, price)
+            return (grams / 1000, price)
+        return (0.1, price)
 
-    return (1, price)
+    return (1.0, price)
 
 
-def estimate_price_per_piece(product: dict) -> Optional[float]:
-    """Price per individual piece (used for ranking cheapest option)."""
-    pieces, cost = compute_box_info(product)
-    if pieces and cost is not None:
-        return round(cost / pieces, 4)
+def estimate_price_per_kg(product: dict) -> Optional[float]:
+    """Price per kg (used for ranking cheapest option)."""
+    kg, cost = compute_unit_info_kg(product)
+    if kg and kg > 0 and cost is not None:
+        return round(cost / kg, 4)
     return None
 
 
-# ─── Category assignment ────────────────────────────────────────────────────────────────────────────
+# Voor compatibiliteit met main.py
+def estimate_price_per_piece(product: dict) -> Optional[float]:
+    return estimate_price_per_kg(product)
+
 
 def assign_categories(products: list, categories: list) -> list:
     for product in products:
@@ -109,15 +113,12 @@ def assign_categories(products: list, categories: list) -> list:
             )
             if matched:
                 product["category_id"] = cat["id"]
-                product["price_per_piece"] = estimate_price_per_piece(product)
+                product["price_per_piece"] = estimate_price_per_kg(product)
                 break
     return products
 
 
-# ─── Core optimiser ────────────────────────────────────────────────────────────────────────────
-
 def _optimal_fractions(requirements: list, best: dict) -> list:
-    """Solve LP for optimal percentage allocation."""
     n = len(requirements)
     prices, bounds = [], []
     for req in requirements:
@@ -142,74 +143,66 @@ def _optimal_fractions(requirements: list, best: dict) -> list:
     return [f / total for f in fracs]
 
 
-def _purchase_plan(pieces_needed: int, product: dict, loose_candidates: list) -> dict:
-    """
-    Given a product (possibly box-only) and pieces needed, decide:
-      - how many whole boxes to buy
-      - whether to top up with a loose product or buy one extra box
-    Returns a plan dict.
-    """
-    ppunit, cost_per_unit = compute_box_info(product)
+def _purchase_plan_kg(kg_needed: float, product: dict, loose_candidates: list) -> dict:
+    kg_per_unit, cost_per_unit = compute_unit_info_kg(product)
 
-    if ppunit == 1:
+    full_units = int(kg_needed / kg_per_unit)
+    covered_kg = full_units * kg_per_unit
+    gap_kg = round(kg_needed - covered_kg, 6)
+
+    if gap_kg < 0.001:
         return {
-            "boxes": pieces_needed,
-            "pieces_per_box": 1,
-            "actual_pieces": pieces_needed,
-            "bulk_cost": round(pieces_needed * cost_per_unit, 2),
+            "units": full_units,
+            "kg_per_unit": round(kg_per_unit, 3),
+            "actual_kg": round(covered_kg, 3),
+            "bulk_cost": round(full_units * cost_per_unit, 2),
             "supplement": None,
-            "total_cost": round(pieces_needed * cost_per_unit, 2),
+            "total_cost": round(full_units * cost_per_unit, 2),
         }
 
-    full_boxes = pieces_needed // ppunit
-    covered = full_boxes * ppunit
-    gap = pieces_needed - covered
+    # Optie A: extra eenheid
+    cost_a = (full_units + 1) * cost_per_unit
+    kg_a = (full_units + 1) * kg_per_unit
 
-    if gap == 0:
-        return {
-            "boxes": full_boxes,
-            "pieces_per_box": ppunit,
-            "actual_pieces": covered,
-            "bulk_cost": round(full_boxes * cost_per_unit, 2),
-            "supplement": None,
-            "total_cost": round(full_boxes * cost_per_unit, 2),
-        }
-
-    cost_a = (full_boxes + 1) * cost_per_unit
-    pieces_a = (full_boxes + 1) * ppunit
-
+    # Optie B: aanvullen met goedkoopste ander product
     best_loose = None
     cost_b = None
     for lp in loose_candidates:
         if lp.get("id") == product.get("id"):
             continue
-        lp_ppu = lp.get("price_per_piece")
-        if lp_ppu is None:
+        if lp.get("price_per_piece") is None:
             continue
-        candidate_cost = full_boxes * cost_per_unit + gap * lp_ppu
+        lp_kg_per_unit, lp_cost_per_unit = compute_unit_info_kg(lp)
+        if lp_kg_per_unit <= 0:
+            continue
+        supp_units = math.ceil(gap_kg / lp_kg_per_unit)
+        supp_cost = supp_units * lp_cost_per_unit
+        candidate_cost = full_units * cost_per_unit + supp_cost
         if cost_b is None or candidate_cost < cost_b:
             cost_b = candidate_cost
-            best_loose = lp
+            best_loose = (lp, supp_units, round(supp_units * lp_kg_per_unit, 3), round(supp_cost, 2))
 
     if best_loose and cost_b is not None and cost_b < cost_a:
+        lp, supp_units, supp_kg, supp_cost = best_loose
         return {
-            "boxes": full_boxes,
-            "pieces_per_box": ppunit,
-            "actual_pieces": covered + gap,
-            "bulk_cost": round(full_boxes * cost_per_unit, 2),
+            "units": full_units,
+            "kg_per_unit": round(kg_per_unit, 3),
+            "actual_kg": round(covered_kg + supp_kg, 3),
+            "bulk_cost": round(full_units * cost_per_unit, 2),
             "supplement": {
-                "product": best_loose,
-                "pieces": gap,
-                "cost": round(gap * best_loose["price_per_piece"], 2),
+                "product": lp,
+                "units": supp_units,
+                "kg": supp_kg,
+                "cost": supp_cost,
             },
             "total_cost": round(cost_b, 2),
         }
 
     return {
-        "boxes": full_boxes + 1,
-        "pieces_per_box": ppunit,
-        "actual_pieces": pieces_a,
-        "bulk_cost": round((full_boxes + 1) * cost_per_unit, 2),
+        "units": full_units + 1,
+        "kg_per_unit": round(kg_per_unit, 3),
+        "actual_kg": round(kg_a, 3),
+        "bulk_cost": round((full_units + 1) * cost_per_unit, 2),
         "supplement": None,
         "total_cost": round(cost_a, 2),
     }
@@ -221,7 +214,7 @@ def find_cheapest_combination(
     num_packages: int,
 ) -> dict:
     requirements = package_type.get("requirements", [])
-    total_pieces = package_type.get("total_pieces", 100)
+    total_kg = package_type.get("total_pieces", 25)
     warnings = []
 
     best = {}
@@ -233,7 +226,7 @@ def find_cheapest_combination(
         ]
         if not candidates:
             warnings.append(
-                f"Geen producten met bekende stuksprijs voor categorie '{req.get('category_name', cid)}'"
+                f"Geen producten voor categorie '{req.get('category_name', cid)}'"
             )
             best[cid] = None
         else:
@@ -246,8 +239,8 @@ def find_cheapest_combination(
 
     for i, req in enumerate(requirements):
         cid = req["category_id"]
-        pieces_per_package = round(fractions[i] * total_pieces)
-        pieces_needed_total = pieces_per_package * num_packages
+        kg_per_package = round(fractions[i] * total_kg, 3)
+        kg_needed_total = round(kg_per_package * num_packages, 3)
 
         product = best.get(cid)
         if not product:
@@ -256,7 +249,7 @@ def find_cheapest_combination(
                 "category_name": req.get("category_name", f"Cat {cid}"),
                 "product": None,
                 "pct": round(fractions[i] * 100, 1),
-                "pieces_per_package": pieces_per_package,
+                "kg_per_package": kg_per_package,
                 "plan": None,
                 "total_cost": 0,
             })
@@ -265,11 +258,10 @@ def find_cheapest_combination(
         loose = [
             p for p in products_by_category.get(cid, [])
             if p.get("price_per_piece") is not None
-            and p.get("price_unit") == "stuk"
             and p.get("id") != product.get("id")
         ]
 
-        plan = _purchase_plan(pieces_needed_total, product, loose)
+        plan = _purchase_plan_kg(kg_needed_total, product, loose)
         grand_total += plan["total_cost"]
 
         allocations.append({
@@ -277,10 +269,10 @@ def find_cheapest_combination(
             "category_name": req.get("category_name", f"Cat {cid}"),
             "product": product,
             "pct": round(fractions[i] * 100, 1),
-            "pieces_per_package": pieces_per_package,
-            "pieces_needed": pieces_needed_total,
+            "kg_per_package": kg_per_package,
+            "kg_needed": kg_needed_total,
             "plan": plan,
-            "price_per_piece": product["price_per_piece"],
+            "price_per_kg": product["price_per_piece"],
             "total_cost": plan["total_cost"],
         })
 

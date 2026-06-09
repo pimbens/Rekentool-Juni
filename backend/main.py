@@ -3,7 +3,7 @@ import tempfile
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -99,7 +99,7 @@ async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(
 
         row_copy["category_id"] = matched_cat
         row_copy["grams_per_piece"] = matched_grams
-        row_copy["price_per_piece"] = estimate_price_per_piece({**row_copy, "description": row_copy["description"]})
+        row_copy["price_per_piece"] = estimate_price_per_piece({**row_copy})
 
         p = Product(
             price_list_id=upload.id,
@@ -220,7 +220,7 @@ def calculate(order: List[OrderItem], db: Session = Depends(get_db)):
 
 class PackageTypeIn(BaseModel):
     name: str
-    total_pieces: int = 100
+    total_pieces: float = 25
     requirements: list = []
 
 
@@ -336,7 +336,7 @@ def update_product(product_id: int, body: ProductOverride, db: Session = Depends
         "grams_per_piece": p.grams_per_piece,
     })
     db.commit()
-    return {"ok": True, "price_per_piece": p.price_per_piece}
+    return {"ok": True, "price_per_kg": p.price_per_piece}
 
 
 if __name__ == "__main__":
