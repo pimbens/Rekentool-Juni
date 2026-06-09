@@ -22,7 +22,7 @@ class PackageType(Base):
     __tablename__ = "package_types"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
-    total_pieces = Column(Integer, default=100)
+    total_pieces = Column(Float, default=25)  # total kg per package
     requirements = Column(JSON, default=list)
 
 
@@ -56,7 +56,7 @@ class Product(Base):
     price_unit = Column(String)
     category_id = Column(Integer, ForeignKey("fruit_categories.id"), nullable=True)
     grams_per_piece = Column(Float, nullable=True)
-    price_per_piece = Column(Float, nullable=True)
+    price_per_piece = Column(Float, nullable=True)  # stores price_per_kg
 
 
 def get_db():
@@ -82,7 +82,7 @@ def init_db():
 
         pkg = PackageType(
             name="Standaard fruitpakket",
-            total_pieces=100,
+            total_pieces=25,  # 25 kg per pakket
             requirements=[
                 {"category_id": categories[0].id, "min_pct": 30, "max_pct": 40},
                 {"category_id": categories[1].id, "min_pct": 20, "max_pct": 30},

@@ -1,14 +1,14 @@
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── State ───────────────────────────────────────────────────────────────────────────────
 let categories = [];
 let packageTypes = [];
 let allProducts = [];
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Init ────────────────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
   await Promise.all([loadCategories(), loadPackageTypes(), loadProducts(), loadHistory()]);
 });
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
+// ─── Tabs ────────────────────────────────────────────────────────────────────────────────
 function showTab(tabId) {
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
   document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
@@ -16,7 +16,7 @@ function showTab(tabId) {
   event.target.classList.add("active");
 }
 
-// ─── Categories ───────────────────────────────────────────────────────────────
+// ─── Categories ─────────────────────────────────────────────────────────────────────────────
 async function loadCategories() {
   const res = await fetch("/api/categories");
   categories = await res.json();
@@ -92,7 +92,7 @@ async function deleteCategory(id) {
   await loadCategories();
 }
 
-// ─── Package types ────────────────────────────────────────────────────────────
+// ─── Package types ────────────────────────────────────────────────────────────────────────────
 async function loadPackageTypes() {
   const res = await fetch("/api/package-types");
   packageTypes = await res.json();
@@ -114,7 +114,7 @@ function renderPackages() {
       <div class="pkg-item">
         <div class="pkg-item-info">
           <strong>${pkg.name}</strong>
-          <small style="color:#888;display:block;margin:2px 0">${pkg.total_pieces} stuks per pakket</small>
+          <small style="color:#888;display:block;margin:2px 0">${pkg.total_pieces} kg per pakket</small>
           <div class="pkg-reqs">${reqBadges}</div>
         </div>
         <div class="pkg-item-actions">
@@ -140,7 +140,7 @@ function showPackageForm(pkg) {
     document.getElementById("pkg-form-title").textContent = "Nieuw pakket";
     document.getElementById("pkg-id").value = "";
     document.getElementById("pkg-name").value = "";
-    document.getElementById("pkg-total").value = 100;
+    document.getElementById("pkg-total").value = 25;
     reqs.innerHTML = "";
   }
 }
@@ -156,7 +156,6 @@ function cancelPackageForm() {
 
 function addRequirement(existing) {
   const container = document.getElementById("pkg-requirements");
-  const idx = container.children.length;
   const catOptions = categories.map(c =>
     `<option value="${c.id}" ${existing && existing.category_id === c.id ? "selected" : ""}>${c.name}</option>`
   ).join("");
@@ -180,7 +179,7 @@ function addRequirement(existing) {
       <label>Is "rest"</label>
       <input type="checkbox" class="req-rest" ${existing && existing.max_pct >= 100 && existing.min_pct === 0 ? "checked" : ""} title="Vul aan tot 100%" />
     </div>
-    <button class="btn-danger" onclick="this.parentElement.remove()">×</button>
+    <button class="btn-danger" onclick="this.parentElement.remove()">x</button>
   `;
   container.appendChild(div);
 }
@@ -188,7 +187,7 @@ function addRequirement(existing) {
 async function savePackage() {
   const id = document.getElementById("pkg-id").value;
   const name = document.getElementById("pkg-name").value.trim();
-  const totalPieces = parseInt(document.getElementById("pkg-total").value) || 100;
+  const totalKg = parseFloat(document.getElementById("pkg-total").value) || 25;
 
   if (!name) { alert("Vul een naam in."); return; }
 
@@ -204,7 +203,7 @@ async function savePackage() {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, total_pieces: totalPieces, requirements }),
+    body: JSON.stringify({ name, total_pieces: totalKg, requirements }),
   });
   if (!res.ok) { alert("Opslaan mislukt."); return; }
   cancelPackageForm();
@@ -212,150 +211,123 @@ async function savePackage() {
 }
 
 async function deletePackage(id) {
-  if (!confirm("Weet je zeker dat je dit pakket wilt verwijderen?")) return;
+  if (!confirm("Weet je zeker dat je dit pakketsoort wilt verwijderen?")) return;
   await fetch(`/api/package-types/${id}`, { method: "DELETE" });
   await loadPackageTypes();
 }
 
-// ─── Products ─────────────────────────────────────────────────────────────────
+// ─── Products ─────────────────────────────────────────────────────────────────────────────
 async function loadProducts() {
   const res = await fetch("/api/price-list/active");
   const data = await res.json();
   allProducts = data.products || [];
-  renderProductsTable(allProducts);
+  renderProducts();
 }
 
 function populateCatFilter() {
-  const sel = document.getElementById("product-cat-filter");
-  const existing = Array.from(sel.options).map(o => o.value);
-  categories.forEach(c => {
-    if (!existing.includes(String(c.id))) {
-      const opt = document.createElement("option");
-      opt.value = c.id;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
-    }
-  });
+  const sel = document.getElementById("filter-category");
+  sel.innerHTML = '<option value="">Alle categorieën</option>' +
+    categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 }
 
-function filterProducts() {
-  const query = document.getElementById("product-search").value.toLowerCase();
-  const catFilter = document.getElementById("product-cat-filter").value;
-  const filtered = allProducts.filter(p => {
-    const matchText = !query || p.description.toLowerCase().includes(query);
-    const matchCat = !catFilter
-      ? true
-      : catFilter === "uncategorized"
-        ? !p.category_id
-        : String(p.category_id) === catFilter;
-    return matchText && matchCat;
-  });
-  renderProductsTable(filtered);
-}
+function renderProducts() {
+  const container = document.getElementById("products-list");
+  const filterCat = document.getElementById("filter-category")?.value;
+  const filterText = document.getElementById("filter-text")?.value.toLowerCase() || "";
 
-function renderProductsTable(products) {
-  const container = document.getElementById("products-table-container");
+  let products = allProducts;
+  if (filterCat) products = products.filter(p => String(p.category_id) === filterCat);
+  if (filterText) products = products.filter(p => p.description.toLowerCase().includes(filterText));
+
   if (!products.length) {
     container.innerHTML = '<p class="hint">Geen producten gevonden.</p>';
     return;
   }
 
-  const catOptions = ['<option value="">— geen —</option>', ...categories.map(c =>
-    `<option value="${c.id}">${c.name}</option>`
-  )].join("");
-
-  const rows = products.map(p => {
-    const selectedCat = p.category_id ? `value="${p.category_id}"` : "";
-    return `
-      <tr id="prod-row-${p.id}">
-        <td>${p.description}</td>
-        <td>${p.content || "—"}</td>
-        <td>€ ${p.price?.toFixed(2) ?? "?"} / ${p.price_unit}</td>
-        <td>
-          <select class="prod-cat-sel" data-id="${p.id}" onchange="markDirty(${p.id})">
-            ${catOptions.replace(`value="${p.category_id}"`, `value="${p.category_id}" selected`)}
-          </select>
-        </td>
-        <td>
-          <input type="number" class="prod-grams" data-id="${p.id}" value="${p.grams_per_piece || ""}" placeholder="g/stuk" step="1" min="0" onchange="markDirty(${p.id})" />
-        </td>
-        <td id="ppp-${p.id}">${p.price_per_piece != null ? `€ ${p.price_per_piece.toFixed(4)}` : "—"}</td>
-        <td><button class="save-btn hidden" id="save-${p.id}" onclick="saveProduct(${p.id})">Opslaan</button></td>
-      </tr>
-    `;
-  }).join("");
-
   container.innerHTML = `
-    <div class="table-wrap">
-      <table class="products-table">
-        <thead>
-          <tr>
-            <th>Omschrijving</th>
-            <th>Inhoud</th>
-            <th>Prijs</th>
-            <th>Categorie</th>
-            <th>Gram/stuk</th>
-            <th>Per stuk</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
+    <table class="product-table">
+      <thead>
+        <tr>
+          <th>Omschrijving</th>
+          <th>Inhoud</th>
+          <th>Prijs</th>
+          <th>Eenheid</th>
+          <th>Categorie</th>
+          <th>Prijs/kg</th>
+          <th>Grammen/stuk</th>
+          <th>Actie</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${products.map(p => {
+          const catName = categories.find(c => c.id === p.category_id)?.name || "—";
+          const ppkg = p.price_per_piece != null ? `€ ${p.price_per_piece.toFixed(4)}` : "—";
+          return `
+            <tr id="prod-row-${p.id}">
+              <td>${p.description}</td>
+              <td>${p.content || "—"}</td>
+              <td>€ ${p.price?.toFixed(2) ?? "—"}</td>
+              <td>${p.price_unit || "—"}</td>
+              <td>
+                <select onchange="updateProductCat(${p.id}, this.value)">
+                  <option value="">Geen</option>
+                  ${categories.map(c => `<option value="${c.id}" ${c.id === p.category_id ? "selected" : ""}>${c.name}</option>`).join("")}
+                </select>
+              </td>
+              <td>${ppkg}</td>
+              <td>
+                <input type="number" style="width:70px" placeholder="gram" value="" 
+                  onchange="updateProductGrams(${p.id}, this.value)" />
+              </td>
+              <td><button class="btn-secondary" onclick="saveProductRow(${p.id})">Opslaan</button></td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
   `;
 }
 
-function markDirty(id) {
-  document.getElementById(`save-${id}`).classList.remove("hidden");
-}
+async function updateProductCat(id, catId) {}
+async function updateProductGrams(id, grams) {}
 
-async function saveProduct(id) {
+async function saveProductRow(id) {
   const row = document.getElementById(`prod-row-${id}`);
-  const catId = row.querySelector(".prod-cat-sel").value;
-  const grams = row.querySelector(".prod-grams").value;
-
+  const catId = parseInt(row.querySelector("select").value) || null;
+  const grams = parseFloat(row.querySelector('input[type=number]').value) || null;
   const res = await fetch(`/api/products/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      category_id: catId ? parseInt(catId) : null,
-      grams_per_piece: grams ? parseFloat(grams) : null,
-    }),
+    body: JSON.stringify({ category_id: catId, grams_per_piece: grams }),
   });
-  const data = await res.json();
   if (res.ok) {
-    document.getElementById(`ppp-${id}`).textContent =
-      data.price_per_piece != null ? `€ ${data.price_per_piece.toFixed(4)}` : "—";
-    document.getElementById(`save-${id}`).classList.add("hidden");
-    // Update local state
-    const p = allProducts.find(x => x.id === id);
-    if (p) { p.category_id = catId ? parseInt(catId) : null; p.price_per_piece = data.price_per_piece; }
+    const data = await res.json();
+    await loadProducts();
   } else {
     alert("Opslaan mislukt.");
   }
 }
 
-// ─── History ──────────────────────────────────────────────────────────────────
+// ─── History ─────────────────────────────────────────────────────────────────────────────
 async function loadHistory() {
   const res = await fetch("/api/price-lists");
   const lists = await res.json();
   const container = document.getElementById("history-list");
   if (!lists.length) {
-    container.innerHTML = '<p class="hint">Geen uploads.</p>';
+    container.innerHTML = '<p class="hint">Nog geen prijslijsten geüpload.</p>';
     return;
   }
-  container.innerHTML = lists.map(l => {
-    const date = new Date(l.upload_date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
-    return `
-      <div class="history-item">
-        <div style="flex:1">
-          <strong>${l.filename}</strong>
-          <small style="display:block;color:#888">${date}</small>
-        </div>
-        ${l.active ? '<span class="badge-active">Actief</span>' : `<button class="btn-secondary" onclick="activateList(${l.id})">Activeer</button>`}
+  container.innerHTML = lists.map(u => `
+    <div class="history-item ${u.active ? "active" : ""}">
+      <div>
+        <strong>${u.filename}</strong>
+        <small style="display:block;color:#888">${new Date(u.upload_date).toLocaleString("nl-NL")}</small>
       </div>
-    `;
-  }).join("");
+      <div style="display:flex;gap:8px;align-items:center">
+        ${u.active ? '<span class="badge-active">Actief</span>' : `<button class="btn-secondary" onclick="activateList(${u.id})">Activeren</button>`}
+      </div>
+    </div>
+  `).join("");
 }
 
 async function activateList(id) {

@@ -13,7 +13,7 @@ from database import (
     CategoryMapping, PriceListUpload, Product
 )
 from pdf_parser import parse_price_list
-from optimizer import assign_categories, estimate_price_per_piece, find_cheapest_combination
+from optimizer import assign_categories, estimate_price_per_kg, find_cheapest_combination
 
 app = FastAPI(title="Rekentool Fruitpakketten")
 
@@ -35,7 +35,7 @@ def startup():
     init_db()
 
 
-# ─── Serve frontend ──────────────────────────────────────────────────────────
+# ─── Serve frontend ────────────────────────────────────────────────────────────────────────────
 
 @app.get("/")
 def index():
@@ -47,14 +47,13 @@ def admin():
     return FileResponse(os.path.join(FRONTEND_DIR, "admin.html"))
 
 
-# ─── Price list ──────────────────────────────────────────────────────────────
+# ─── Price list ────────────────────────────────────────────────────────────────────────────
 
 @app.post("/api/upload-price-list")
 async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(400, "Alleen PDF-bestanden zijn toegestaan")
 
-    # Deactivate previous uploads
     db.query(PriceListUpload).update({"active": False})
 
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -74,16 +73,14 @@ async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(
     categories = db.query(FruitCategory).all()
     cat_list = [{"id": c.id, "name": c.name, "keywords": c.keywords} for c in categories]
 
-    # Also load manual mappings
     mappings = db.query(CategoryMapping).all()
-    mapping_dict = {}  # keyword -> (category_id, grams_per_piece)
+    mapping_dict = {}
     for m in mappings:
         mapping_dict[m.product_keyword.lower()] = (m.category_id, m.grams_per_piece)
 
     products_added = 0
     for row in rows:
         row_copy = dict(row)
-        # Try manual mapping first
         desc_lower = row_copy["description"].lower()
         matched_cat = None
         matched_grams = None
@@ -93,7 +90,6 @@ async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(
                 matched_grams = grams
                 break
 
-        # Fall back to category keywords (word-boundary match)
         if matched_cat is None:
             import re as _re
             for cat in cat_list:
@@ -107,7 +103,7 @@ async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(
 
         row_copy["category_id"] = matched_cat
         row_copy["grams_per_piece"] = matched_grams
-        row_copy["price_per_piece"] = estimate_price_per_piece({**row_copy, "description": row_copy["description"]})
+        row_copy["price_per_piece"] = estimate_price_per_kg({**row_copy, "description": row_copy["description"]})
 
         p = Product(
             price_list_id=upload.id,
@@ -171,7 +167,7 @@ def activate_price_list(list_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-# ─── Optimize ────────────────────────────────────────────────────────────────
+# ─── Optimize ────────────────────────────────────────────────────────────────────────────
 
 class OrderItem(BaseModel):
     package_type_id: int
@@ -228,11 +224,11 @@ def calculate(order: List[OrderItem], db: Session = Depends(get_db)):
     return results
 
 
-# ─── Package types CRUD ──────────────────────────────────────────────────────
+# ─── Package types CRUD ────────────────────────────────────────────────────────────────────────────
 
 class PackageTypeIn(BaseModel):
     name: str
-    total_pieces: int = 100
+    total_pieces: float = 25
     requirements: list = []
 
 
@@ -285,7 +281,7 @@ def delete_package_type(pkg_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-# ─── Categories CRUD ─────────────────────────────────────────────────────────
+# ─── Categories CRUD ────────────────────────────────────────────────────────────────────────────
 
 class CategoryIn(BaseModel):
     name: str
@@ -328,7 +324,7 @@ def delete_category(cat_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-# ─── Product overrides (grams_per_piece) ─────────────────────────────────────
+# ─── Product overrides ────────────────────────────────────────────────────────────────────────────
 
 class ProductOverride(BaseModel):
     category_id: Optional[int] = None
@@ -344,8 +340,7 @@ def update_product(product_id: int, body: ProductOverride, db: Session = Depends
         p.category_id = body.category_id
     if body.grams_per_piece is not None:
         p.grams_per_piece = body.grams_per_piece
-    # Recalculate price_per_piece
-    p.price_per_piece = estimate_price_per_piece({
+    p.price_per_piece = estimate_price_per_kg({
         "price": p.price,
         "price_unit": p.price_unit,
         "content": p.content,
@@ -353,7 +348,7 @@ def update_product(product_id: int, body: ProductOverride, db: Session = Depends
         "grams_per_piece": p.grams_per_piece,
     })
     db.commit()
-    return {"ok": True, "price_per_piece": p.price_per_piece}
+    return {"ok": True, "price_per_kg": p.price_per_piece}
 
 
 if __name__ == "__main__":

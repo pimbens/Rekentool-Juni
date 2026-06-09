@@ -32,7 +32,7 @@ function renderActiveListInfo() {
     });
     const cat = activeList.products.filter(p => p.price_per_piece).length;
     box.className = "info-box";
-    box.innerHTML = `✅ Actieve prijslijst: <strong>${activeList.filename}</strong> &nbsp;|&nbsp; Geüpload: ${date} &nbsp;|&nbsp; ${cat} producten met stuksprijs`;
+    box.innerHTML = `✅ Actieve prijslijst: <strong>${activeList.filename}</strong> &nbsp;|&nbsp; Geüpload: ${date} &nbsp;|&nbsp; ${cat} producten met kg-prijs`;
   }
 }
 
@@ -46,7 +46,7 @@ function renderOrderForm() {
     <div class="order-row">
       <label>
         <strong>${pkg.name}</strong>
-        <small style="display:block;color:#888;font-weight:400">${pkg.total_pieces} stuks per pakket</small>
+        <small style="display:block;color:#888;font-weight:400">${pkg.total_pieces} kg per pakket</small>
       </label>
       <input type="number" id="qty-${pkg.id}" value="0" min="0" placeholder="Aantal" />
       <span style="color:#888;font-size:.85rem">pakketten</span>
@@ -146,21 +146,20 @@ function renderResults(results) {
     const rows = r.allocations.map(a => {
       const product = a.product;
       const plan = a.plan;
-      const ppp = a.price_per_piece != null ? `€ ${a.price_per_piece.toFixed(4)}` : "onbekend";
+      const ppkg = a.price_per_kg != null ? `€ ${a.price_per_kg.toFixed(4)}/kg` : "onbekend";
 
       let inkoop = "";
       if (!product) {
         inkoop = `<span style="color:#c00">Geen product gevonden</span>`;
       } else if (!plan) {
         inkoop = product.description;
-      } else if (plan.pieces_per_box === 1) {
-        inkoop = `${product.description}<br><small>${plan.boxes} stuks</small>`;
       } else {
-        const boxLabel = plan.boxes === 1 ? "krat" : "kratten";
-        inkoop = `${product.description}<br><small>${plan.boxes} ${boxLabel} × ${plan.pieces_per_box} stuks`;
+        const unitLabel = plan.kg_per_unit === 1 ? "kg" : `${plan.kg_per_unit} kg`;
+        const unitWord = plan.units === 1 ? "eenheid" : "eenheden";
+        inkoop = `${product.description}<br><small>${plan.units} × ${unitLabel} = ${plan.actual_kg} kg`;
         if (plan.supplement) {
           const s = plan.supplement;
-          inkoop += ` + ${s.pieces} losse van <em>${s.product.description}</em> (€ ${s.cost.toFixed(2)})`;
+          inkoop += ` + ${s.kg} kg van <em>${s.product.description}</em> (€ ${s.cost.toFixed(2)})`;
         }
         inkoop += `</small>`;
       }
@@ -172,9 +171,9 @@ function renderResults(results) {
           <td class="best">${a.category_name}</td>
           <td>${inkoop}</td>
           <td>${a.pct}%</td>
-          <td>${a.pieces_per_package}</td>
-          <td>${plan ? plan.actual_pieces : a.pieces_needed ?? "?"}</td>
-          <td>${ppp}</td>
+          <td>${a.kg_per_package} kg</td>
+          <td>${plan ? plan.actual_kg : a.kg_needed ?? "?"} kg</td>
+          <td>${ppkg}</td>
           <td>€ ${costPerPkg.toFixed(2)}</td>
           <td>€ ${a.total_cost.toFixed(2)}</td>
         </tr>
@@ -194,9 +193,9 @@ function renderResults(results) {
               <th>Categorie</th>
               <th>Inkoop</th>
               <th>%</th>
-              <th>Stuks/pakket</th>
-              <th>Totaal stuks</th>
-              <th>Per stuk</th>
+              <th>Kg/pakket</th>
+              <th>Totaal kg</th>
+              <th>Prijs/kg</th>
               <th>Kosten/pakket</th>
               <th>Totaal</th>
             </tr>
