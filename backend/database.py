@@ -22,7 +22,7 @@ class PackageType(Base):
     __tablename__ = "package_types"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
-    total_pieces = Column(Integer, default=100)
+    total_pieces = Column(Float, default=25)  # kg per pakket
     requirements = Column(JSON, default=list)
     # requirements: [{"category_id": 1, "min_pct": 30, "max_pct": 40}, ...]
 
@@ -85,7 +85,7 @@ def init_db():
 
         pkg = PackageType(
             name="Standaard fruitpakket",
-            total_pieces=100,
+            total_pieces=25,
             requirements=[
                 {"category_id": categories[0].id, "min_pct": 30, "max_pct": 40},
                 {"category_id": categories[1].id, "min_pct": 20, "max_pct": 30},

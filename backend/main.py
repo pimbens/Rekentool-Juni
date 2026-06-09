@@ -232,7 +232,7 @@ def calculate(order: List[OrderItem], db: Session = Depends(get_db)):
 
 class PackageTypeIn(BaseModel):
     name: str
-    total_pieces: int = 100
+    total_pieces: float = 25
     requirements: list = []
 
 

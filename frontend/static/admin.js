@@ -114,7 +114,7 @@ function renderPackages() {
       <div class="pkg-item">
         <div class="pkg-item-info">
           <strong>${pkg.name}</strong>
-          <small style="color:#888;display:block;margin:2px 0">${pkg.total_pieces} stuks per pakket</small>
+          <small style="color:#888;display:block;margin:2px 0">${pkg.total_pieces} kg per pakket</small>
           <div class="pkg-reqs">${reqBadges}</div>
         </div>
         <div class="pkg-item-actions">
@@ -140,7 +140,7 @@ function showPackageForm(pkg) {
     document.getElementById("pkg-form-title").textContent = "Nieuw pakket";
     document.getElementById("pkg-id").value = "";
     document.getElementById("pkg-name").value = "";
-    document.getElementById("pkg-total").value = 100;
+    document.getElementById("pkg-total").value = 25;
     reqs.innerHTML = "";
   }
 }
@@ -188,7 +188,7 @@ function addRequirement(existing) {
 async function savePackage() {
   const id = document.getElementById("pkg-id").value;
   const name = document.getElementById("pkg-name").value.trim();
-  const totalPieces = parseInt(document.getElementById("pkg-total").value) || 100;
+  const totalPieces = parseFloat(document.getElementById("pkg-total").value) || 25;
 
   if (!name) { alert("Vul een naam in."); return; }
 
