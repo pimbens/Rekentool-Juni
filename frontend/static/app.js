@@ -72,6 +72,7 @@ function setupDropZone() {
 
 async function uploadFile(file) {
   const progress = document.getElementById("upload-progress");
+  const progressText = document.getElementById("upload-progress-text");
   const result = document.getElementById("upload-result");
   const dropLabel = document.querySelector(".drop-label");
 
@@ -83,12 +84,16 @@ async function uploadFile(file) {
   formData.append("file", file);
 
   try {
+    progressText.textContent = "Bezig met uploaden…";
     const res = await fetch("/api/upload-price-list", { method: "POST", body: formData });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Upload mislukt");
-    result.innerHTML = `<div class="info-box">✅ Prijslijst verwerkt: <strong>${data.products_parsed}</strong> producten gevonden.</div>`;
+
+    progressText.textContent = "Prijslijst verwerken…";
     await loadActiveList();
     await loadPackageTypes();
+
+    result.innerHTML = `<div class="info-box">✅ Prijslijst verwerkt: <strong>${data.products_parsed}</strong> producten gevonden.</div>`;
   } catch (e) {
     result.innerHTML = `<div class="info-box error">❌ Fout: ${e.message}</div>`;
   } finally {
@@ -154,9 +159,7 @@ function renderResults(results) {
       } else if (!plan) {
         inkoop = product.description;
       } else {
-        const unitLabel = plan.kg_per_unit === 1 ? "kg" : `${plan.kg_per_unit} kg`;
-        const unitWord = plan.units === 1 ? "eenheid" : "eenheden";
-        inkoop = `${product.description}<br><small>${plan.units} × ${unitLabel} = ${plan.actual_kg} kg`;
+        inkoop = `${product.description}<br><small>${plan.units} × ${plan.kg_per_unit} kg = ${plan.actual_kg} kg`;
         if (plan.supplement) {
           const s = plan.supplement;
           inkoop += ` + ${s.kg} kg van <em>${s.product.description}</em> (€ ${s.cost.toFixed(2)})`;
