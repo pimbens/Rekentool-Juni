@@ -8,6 +8,47 @@ from typing import List, Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
+
+# Bekende fruitsoorten met bijbehorende zoekwoorden
+FRUIT_CATALOGUE = [
+    ("Appels",         ["appel", "apple", "elstar", "jonagold", "braeburn", "gala", "granny", "fuji", "kanzi", "jazz", "pink lady", "boskoop"]),
+    ("Peren",          ["peer", "peren", "conference", "doyenne", "comice", "stoof"]),
+    ("Aardbeien",      ["aardbei", "aardbeien", "strawberry"]),
+    ("Mandarijnen",    ["mandarijn", "mandarijnen", "mandarin", "clementine", "satsuma", "tangerine"]),
+    ("Sinaasappels",   ["sinaasappel", "sinaasappels", "orange", "navel", "valencia"]),
+    ("Bananen",        ["banaan", "bananen", "banana"]),
+    ("Druiven",        ["druif", "druiven", "grape", "grapes"]),
+    ("Kiwi",           ["kiwi"]),
+    ("Mango",          ["mango"]),
+    ("Ananas",         ["ananas", "pineapple"]),
+    ("Meloenen",       ["meloen", "meloenen", "melon", "watermeloen", "watermelon", "galia", "cantaloupe"]),
+    ("Perziken",       ["perzik", "perziken", "peach", "bosperzik"]),
+    ("Nectarines",     ["nectarine", "nectarines"]),
+    ("Pruimen",        ["pruim", "pruimen", "plum"]),
+    ("Abrikozen",      ["abrikoos", "abrikozen", "apricot"]),
+    ("Frambozen",      ["framboos", "frambozen", "raspberry"]),
+    ("Blauwe bessen",  ["blauwe bes", "blauwe bessen", "blueberry", "blueberries"]),
+    ("Bramen",         ["braam", "bramen", "blackberry"]),
+    ("Citroenen",      ["citroen", "citroenen", "lemon"]),
+    ("Limoenen",       ["limoen", "limoenen", "lime"]),
+    ("Grapefruit",     ["grapefruit"]),
+    ("Avocado",        ["avocado"]),
+    ("Papaja",         ["papaja", "papaya"]),
+    ("Granaatappels",  ["granaatappel", "granaatappels", "pomegranate"]),
+    ("Vijgen",         ["vijg", "vijgen", "fig"]),
+    ("Lychee",         ["lychee", "litchi"]),
+    ("Passievrucht",   ["passievrucht", "passionfruit"]),
+    ("Kokos",          ["kokosnoot", "kokos", "coconut"]),
+    ("Kumquats",       ["kumquat"]),
+    ("Physalis",       ["physalis"]),
+    ("Tamarillo",      ["tamarillo"]),
+    ("Jackfruit",      ["jackfruit"]),
+    ("Rambutan",       ["rambutan"]),
+    ("Pitaya",         ["pitaya", "dragonfruit", "drakenvrucht"]),
+    ("Guave",          ["guave", "guava"]),
+    ("Carambola",      ["carambola", "starfruit"]),
+]
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -77,6 +118,20 @@ async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(
         raise HTTPException(500, f"Fout bij verwerken PDF: {str(e)}")
     finally:
         os.unlink(tmp_path)
+
+    # Auto-aanmaken categorieën voor fruitsoorten die in de PDF voorkomen
+    all_descriptions = " ".join(r["description"].lower() for r in rows)
+    existing_cat_names = {c.name for c in db.query(FruitCategory).all()}
+    new_cats = 0
+    for fruit_name, keywords in FRUIT_CATALOGUE:
+        if fruit_name in existing_cat_names:
+            continue
+        if any(kw in all_descriptions for kw in keywords):
+            db.add(FruitCategory(name=fruit_name, keywords=keywords))
+            new_cats += 1
+    if new_cats:
+        db.flush()
+        print(f"[UPLOAD] {new_cats} nieuwe categorieën aangemaakt", flush=True)
 
     upload = PriceListUpload(filename=file.filename)
     db.add(upload)
