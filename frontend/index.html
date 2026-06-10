@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rekentool Fruitpakketten</title>
+  <title>Rekentool Fruitpakketten Rob's Versshop</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <header>
     <div class="header-inner">
-      <h1>🍎 Rekentool Fruitpakketten</h1>
+      <h1>Rekentool Fruitpakketten Rob's versshop</h1>
       <nav>
         <a href="/" class="active">Handelaar</a>
         <a href="/admin">Beheer</a>
@@ -18,7 +18,7 @@
   </header>
 
   <main>
-    <!-- Stap 1: Upload prijslijst -->
+    <!-- Step 1: Upload price list -->
     <section class="card" id="section-upload">
       <h2>1. Prijslijst van vandaag</h2>
       <div id="active-list-info" class="info-box"></div>
@@ -28,22 +28,22 @@
           <span class="icon">📄</span>
           <p>Sleep een PDF hier naartoe of <button class="link-btn" onclick="document.getElementById('file-input').click()">kies een bestand</button></p>
         </div>
-        <div id="upload-progress" class="hidden" style="text-align:center;padding:16px">
+        <div id="upload-progress" class="hidden">
           <div class="spinner"></div>
-          <span id="upload-progress-text">Bezig met uploaden…</span>
+          <span>Bezig met verwerken…</span>
         </div>
       </div>
       <div id="upload-result"></div>
     </section>
 
-    <!-- Stap 2: Bestelling invoeren -->
+    <!-- Step 2: Enter order -->
     <section class="card" id="section-order">
       <h2>2. Bestelling invoeren</h2>
       <div id="package-order-list"></div>
-      <button class="btn-primary" id="btn-calculate" onclick="calculate()">Bereken goedkoopste inkoop</button>
+      <button class="btn-primary" id="btn-calculate" onclick="calculate()">Bereken bestelling</button>
     </section>
 
-    <!-- Stap 3: Resultaat -->
+    <!-- Step 3: Results -->
     <section class="card hidden" id="section-results">
       <h2>3. Resultaat</h2>
       <div id="results-container"></div>
