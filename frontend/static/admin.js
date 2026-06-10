@@ -203,7 +203,7 @@ async function savePackage() {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, total_pieces: totalKg, requirements }),
+    body: JSON.stringify({ name, total_pieces: totalPieces, requirements }),
   });
   if (!res.ok) { alert("Opslaan mislukt."); return; }
   cancelPackageForm();
