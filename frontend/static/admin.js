@@ -187,7 +187,7 @@ function addRequirement(existing) {
 async function savePackage() {
   const id = document.getElementById("pkg-id").value;
   const name = document.getElementById("pkg-name").value.trim();
-  const totalPieces = parseFloat(document.getElementById("pkg-total").value) || 25;
+  const totalKg = parseFloat(document.getElementById("pkg-total").value) || 25;
 
   if (!name) { alert("Vul een naam in."); return; }
 
