@@ -225,15 +225,23 @@ async function loadProducts() {
 }
 
 function populateCatFilter() {
-  const sel = document.getElementById("filter-category");
-  sel.innerHTML = '<option value="">Alle categorieën</option>' +
-    categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  const sel = document.getElementById("product-cat-filter");
+  if (!sel) return;
+  const existing = Array.from(sel.options).map(o => o.value);
+  categories.forEach(c => {
+    if (!existing.includes(String(c.id))) {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    }
+  });
 }
 
 function renderProducts() {
-  const container = document.getElementById("products-list");
-  const filterCat = document.getElementById("filter-category")?.value;
-  const filterText = document.getElementById("filter-text")?.value.toLowerCase() || "";
+  const container = document.getElementById("products-table-container");
+  const filterCat = document.getElementById("product-cat-filter")?.value;
+  const filterText = document.getElementById("product-search")?.value.toLowerCase() || "";
 
   let products = allProducts;
   if (filterCat) products = products.filter(p => String(p.category_id) === filterCat);
