@@ -59,7 +59,18 @@ async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(
         tmp_path = tmp.name
 
     try:
-        rows = parse_price_list(tmp_path)
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        logger.info(f"Start verwerken PDF: {file.filename}")
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as pool:
+            rows = await loop.run_in_executor(pool, parse_price_list, tmp_path)
+        logger.info(f"PDF verwerkt: {len(rows)} rijen gevonden")
+    except Exception as e:
+        raise HTTPException(500, f"Fout bij verwerken PDF: {str(e)}")
     finally:
         os.unlink(tmp_path)
 
