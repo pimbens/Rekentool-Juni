@@ -84,12 +84,14 @@ async function saveCategory() {
   if (!res.ok) { alert("Opslaan mislukt."); return; }
   cancelCategoryForm();
   await loadCategories();
+  await loadProducts();
 }
 
 async function deleteCategory(id) {
   if (!confirm("Weet je zeker dat je deze categorie wilt verwijderen?")) return;
   await fetch(`/api/categories/${id}`, { method: "DELETE" });
   await loadCategories();
+  await loadProducts();
 }
 
 // ─── Package types ─────────────────────────────────────────────────────────────

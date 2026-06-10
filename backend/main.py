@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
@@ -278,6 +279,35 @@ class CategoryIn(BaseModel):
     keywords: list = []
 
 
+def _recategorize_active_products(db: Session):
+    """Re-run keyword matching on all products in the active price list."""
+    upload = db.query(PriceListUpload).filter(PriceListUpload.active == True).order_by(PriceListUpload.id.desc()).first()
+    if not upload:
+        return
+    categories = db.query(FruitCategory).all()
+    products = db.query(Product).filter(Product.price_list_id == upload.id).all()
+    for p in products:
+        desc_lower = p.description.lower()
+        matched_cat = None
+        for cat in categories:
+            for kw in (cat.keywords or []):
+                pattern = r'\b' + re.escape(kw.lower().strip())
+                if re.search(pattern, desc_lower):
+                    matched_cat = cat.id
+                    break
+            if matched_cat is not None:
+                break
+        p.category_id = matched_cat
+        p.price_per_piece = estimate_price_per_piece({
+            "price": p.price,
+            "price_unit": p.price_unit,
+            "content": p.content,
+            "description": p.description,
+            "grams_per_piece": p.grams_per_piece,
+        })
+    db.commit()
+
+
 @app.get("/api/categories")
 def list_categories(db: Session = Depends(get_db)):
     cats = db.query(FruitCategory).all()
@@ -290,6 +320,7 @@ def create_category(body: CategoryIn, db: Session = Depends(get_db)):
     db.add(cat)
     db.commit()
     db.refresh(cat)
+    _recategorize_active_products(db)
     return {"id": cat.id}
 
 
@@ -301,6 +332,7 @@ def update_category(cat_id: int, body: CategoryIn, db: Session = Depends(get_db)
     cat.name = body.name
     cat.keywords = body.keywords
     db.commit()
+    _recategorize_active_products(db)
     return {"ok": True}
 
 
@@ -311,6 +343,7 @@ def delete_category(cat_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404)
     db.delete(cat)
     db.commit()
+    _recategorize_active_products(db)
     return {"ok": True}
 
 
