@@ -1,7 +1,13 @@
 import os
 import re
+import asyncio
+import logging
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -59,17 +65,15 @@ async def upload_price_list(file: UploadFile = File(...), db: Session = Depends(
         tmp_path = tmp.name
 
     try:
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
-        import logging
-        logging.basicConfig(level=logging.INFO)
-        logger = logging.getLogger(__name__)
+        print(f"[UPLOAD] Start verwerken: {file.filename}", flush=True)
         logger.info(f"Start verwerken PDF: {file.filename}")
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor() as pool:
             rows = await loop.run_in_executor(pool, parse_price_list, tmp_path)
+        print(f"[UPLOAD] Klaar: {len(rows)} producten", flush=True)
         logger.info(f"PDF verwerkt: {len(rows)} rijen gevonden")
     except Exception as e:
+        print(f"[UPLOAD] Fout: {e}", flush=True)
         raise HTTPException(500, f"Fout bij verwerken PDF: {str(e)}")
     finally:
         os.unlink(tmp_path)
