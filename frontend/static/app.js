@@ -172,7 +172,6 @@ function renderResults(results) {
           <td>${a.pct}%</td>
           <td>${a.pieces_per_package} kg</td>
           <td>${plan ? plan.actual_kg : (a.pieces_needed ?? "?")} kg</td>
-          <td>${ppkg}</td>
           <td>€ ${costPerPkg.toFixed(2)}</td>
           <td>€ ${a.total_cost.toFixed(2)}</td>
         </tr>
@@ -194,7 +193,6 @@ function renderResults(results) {
               <th>%</th>
               <th>Kg/pakket</th>
               <th>Totaal kg</th>
-              <th>Prijs/kg</th>
               <th>Kosten/pakket</th>
               <th>Totaal</th>
             </tr>
