@@ -141,41 +141,60 @@ function renderResults(results) {
       ? r.warnings.map(w => `<div class="warning-box">⚠️ ${w}</div>`).join("")
       : "";
 
-    const rows = r.allocations.map(a => {
+    const rows = r.allocations.flatMap(a => {
       const product = a.product;
       const plan = a.plan;
-      const ppkg = a.price_per_piece != null ? `€ ${a.price_per_piece.toFixed(4)}` : "onbekend";
 
-      let inkoop = "";
-      if (!product) {
-        inkoop = `<span style="color:#c00">Geen product gevonden</span>`;
-      } else if (!plan) {
-        inkoop = product.description;
-      } else if (plan.kg_per_unit === 1) {
-        inkoop = `${product.description}<br><small>${plan.units} kg</small>`;
-      } else {
-        const unitLabel = plan.units === 1 ? "krat/colli" : "kratten/colli's";
-        inkoop = `${product.description}<br><small>${plan.units} ${unitLabel} × ${plan.kg_per_unit} kg`;
-        if (plan.supplement) {
-          const s = plan.supplement;
-          inkoop += ` + ${s.kg} kg van <em>${s.product.description}</em> (€ ${s.cost.toFixed(2)})`;
-        }
-        inkoop += `</small>`;
+      if (!product || !plan) {
+        return [`
+          <tr>
+            <td class="best">${a.category_name}</td>
+            <td>${!product ? '<span style="color:#c00">Geen product gevonden</span>' : product.description}</td>
+            <td>${a.pct}%</td>
+            <td>${a.pieces_per_package} kg</td>
+            <td>—</td>
+            <td>—</td>
+            <td>€ ${a.total_cost.toFixed(2)}</td>
+          </tr>
+        `];
       }
 
-      const costPerPkg = plan ? (plan.total_cost / r.num_packages) : 0;
+      // Hoofdregel: alleen het primaire product
+      const mainKgTotal = plan.units * plan.kg_per_unit;
+      const mainCost = plan.bulk_cost;
+      const mainCostPerPkg = mainCost / r.num_packages;
+      const unitLabel = plan.kg_per_unit === 1 ? `${plan.units} kg` : `${plan.units} ${plan.units === 1 ? "krat/colli" : "kratten/colli's"} × ${plan.kg_per_unit} kg`;
 
-      return `
+      const mainRow = `
         <tr>
           <td class="best">${a.category_name}</td>
-          <td>${inkoop}</td>
+          <td>${product.description}<br><small>${unitLabel}</small></td>
           <td>${a.pct}%</td>
           <td>${a.pieces_per_package} kg</td>
-          <td>${plan ? plan.actual_kg : (a.pieces_needed ?? "?")} kg</td>
-          <td>€ ${costPerPkg.toFixed(2)}</td>
-          <td>€ ${a.total_cost.toFixed(2)}</td>
+          <td>${mainKgTotal} kg</td>
+          <td>€ ${mainCostPerPkg.toFixed(2)}</td>
+          <td>€ ${mainCost.toFixed(2)}</td>
         </tr>
       `;
+
+      if (!plan.supplement) return [mainRow];
+
+      // Aanvullingsregel: apart product
+      const s = plan.supplement;
+      const suppCostPerPkg = s.cost / r.num_packages;
+      const suppRow = `
+        <tr style="background:#fafff8">
+          <td style="color:#888;font-size:.82rem">↳ aanvulling</td>
+          <td>${s.product.description}<br><small>${s.kg} kg</small></td>
+          <td>—</td>
+          <td>${(s.kg / r.num_packages).toFixed(3)} kg</td>
+          <td>${s.kg} kg</td>
+          <td>€ ${suppCostPerPkg.toFixed(2)}</td>
+          <td>€ ${s.cost.toFixed(2)}</td>
+        </tr>
+      `;
+
+      return [mainRow, suppRow];
     }).join("");
 
     return `

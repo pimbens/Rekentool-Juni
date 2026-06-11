@@ -34,7 +34,7 @@ function renderCategories() {
     <div class="cat-item">
       <div class="cat-item-info">
         <strong>${c.name}</strong>
-        <div class="cat-keywords">Zoekwoorden: ${c.keywords.join(", ") || "—"}</div>
+        <div class="cat-keywords">Zoekwoorden: ${(c.keywords || []).join(", ") || "—"}</div>
       </div>
       <button class="btn-secondary" onclick="editCategory(${c.id})">Bewerken</button>
       <button class="btn-danger" onclick="deleteCategory(${c.id})">Verwijder</button>
@@ -48,7 +48,7 @@ function showCategoryForm(cat) {
     document.getElementById("cat-form-title").textContent = "Categorie bewerken";
     document.getElementById("cat-id").value = cat.id;
     document.getElementById("cat-name").value = cat.name;
-    document.getElementById("cat-keywords").value = cat.keywords.join(", ");
+    document.getElementById("cat-keywords").value = (cat.keywords || []).join(", ");
   } else {
     document.getElementById("cat-form-title").textContent = "Nieuwe categorie";
     document.getElementById("cat-id").value = "";
