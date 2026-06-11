@@ -271,14 +271,11 @@ function renderProductsTable(products) {
             <th>Prijs</th>
             <th>Eenheid</th>
             <th>Categorie</th>
-            <th>Prijs/kg</th>
-            <th>Gram/stuk</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           ${products.map(p => {
-            const ppkg = p.price_per_piece != null ? `€ ${p.price_per_piece.toFixed(4)}` : "—";
             return `
               <tr id="prod-row-${p.id}">
                 <td>${p.description}</td>
@@ -291,8 +288,6 @@ function renderProductsTable(products) {
                     ${categories.map(c => `<option value="${c.id}" ${c.id === p.category_id ? "selected" : ""}>${c.name}</option>`).join("")}
                   </select>
                 </td>
-                <td>${ppkg}</td>
-                <td><input type="number" style="width:70px" placeholder="gram" /></td>
                 <td><button class="save-btn" onclick="saveProductRow(${p.id})">Opslaan</button></td>
               </tr>
             `;
@@ -306,12 +301,10 @@ function renderProductsTable(products) {
 async function saveProductRow(id) {
   const row = document.getElementById(`prod-row-${id}`);
   const catId = parseInt(row.querySelector("select").value) || null;
-  const gramsInput = row.querySelector('input[type=number]').value;
-  const grams = gramsInput ? parseFloat(gramsInput) : null;
   const res = await fetch(`/api/products/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_id: catId, grams_per_piece: grams }),
+    body: JSON.stringify({ category_id: catId }),
   });
   if (res.ok) {
     await loadProducts();
