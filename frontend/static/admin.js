@@ -43,7 +43,9 @@ function renderCategories() {
 }
 
 function showCategoryForm(cat) {
-  document.getElementById("category-form").classList.remove("hidden");
+  const form = document.getElementById("category-form");
+  form.classList.remove("hidden");
+  setTimeout(() => form.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   if (cat) {
     document.getElementById("cat-form-title").textContent = "Categorie bewerken";
     document.getElementById("cat-id").value = cat.id;
@@ -129,7 +131,9 @@ function renderPackages() {
 }
 
 function showPackageForm(pkg) {
-  document.getElementById("package-form").classList.remove("hidden");
+  const form = document.getElementById("package-form");
+  form.classList.remove("hidden");
+  setTimeout(() => form.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   const reqs = document.getElementById("pkg-requirements");
   if (pkg) {
     document.getElementById("pkg-form-title").textContent = "Pakket bewerken";
